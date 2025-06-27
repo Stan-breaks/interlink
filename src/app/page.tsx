@@ -1,8 +1,7 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Users,
-  Building2,
   MessageCircle,
   CheckCircle,
   Clock,
@@ -10,11 +9,53 @@ import {
   Filter,
   Eye,
   Send,
-  Home,
 } from "lucide-react";
 
+// Define TypeScript Interfaces for data structures
+interface Startup {
+  id: string;
+  name: string;
+  industry: string;
+  size: string;
+  location: string;
+  description: string;
+  positions: string[];
+  requirements: string;
+  budget: string;
+  logo: string;
+}
+
+interface Intern {
+  id: string;
+  name: string;
+  university: string;
+  major: string;
+  year: string;
+  skills: string[];
+  experience: string;
+  portfolio: string;
+  gpa: string;
+  avatar: string;
+}
+
+interface Application {
+  id: number;
+  internId: string;
+  startupId: string;
+  position: string;
+  status: "pending" | "accepted" | "rejected" | "interview_requested";
+  appliedDate: string;
+  feedback: string | null;
+  message: string;
+}
+
+// Define a union type for the currently logged-in user
+type CurrentUser =
+  | (Startup & { type: "startup" })
+  | (Intern & { type: "intern" });
+
 // Mock data (dummy data for demo)
-const mockStartups = [
+const mockStartups: Startup[] = [
   {
     id: "techflow-id-example",
     name: "TechFlow",
@@ -53,7 +94,7 @@ const mockStartups = [
   },
 ];
 
-const mockInterns = [
+const mockInterns: Intern[] = [
   {
     id: "sarah-chen-id-example",
     name: "Sarah Chen",
@@ -64,7 +105,7 @@ const mockInterns = [
     experience: "3 months",
     portfolio: "https://github.com/sarahchen",
     gpa: "3.8",
-    avatar: "👩‍💻",
+    avatar: "👩‍�",
   },
   {
     id: "marcus-johnson-id-example",
@@ -104,7 +145,7 @@ const mockInterns = [
   },
 ];
 
-const initialApplications = [
+const initialApplications: Application[] = [
   {
     id: 1,
     internId: "sarah-chen-id-example", // Sarah applied
@@ -150,38 +191,44 @@ const initialApplications = [
 ];
 
 export default function InterlinkApp() {
-  const [userType, setUserType] = useState("landing"); // 'landing', 'startup', 'intern'
-  const [currentUser, setCurrentUser] = useState(null); // Full user object (intern or startup)
+  const [userType, setUserType] = useState<"landing" | "startup" | "intern">(
+    "landing",
+  );
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
   // Application data states
-  const [startups, setStartups] = useState(mockStartups);
-  const [interns, setInterns] = useState(mockInterns);
-  const [applications, setApplications] = useState(initialApplications);
+  const [startups] = useState<Startup[]>(mockStartups);
+  const [interns] = useState<Intern[]>(mockInterns);
+  const [applications, setApplications] =
+    useState<Application[]>(initialApplications);
 
   // Modal states
-  const [selectedStartup, setSelectedStartup] = useState(null);
-  const [selectedIntern, setSelectedIntern] = useState(null);
-  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [selectedStartup, setSelectedStartup] = useState<Startup | null>(null);
+  const [selectedIntern, setSelectedIntern] = useState<Intern | null>(null);
+  const [showApplyModal, setShowApplyModal] = useState<boolean>(false);
   const [selectedPositionForApplication, setSelectedPositionForApplication] =
-    useState("");
-  const [applyMessage, setApplyMessage] = useState("");
+    useState<string>("");
+  const [applyMessage, setApplyMessage] = useState<string>("");
   const [showRequestInterviewModal, setShowRequestInterviewModal] =
-    useState(false);
-  const [requestInterviewMessage, setRequestInterviewMessage] = useState("");
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [feedbackText, setFeedbackText] = useState("");
-  const [applicationToUpdate, setApplicationToUpdate] = useState(null);
+    useState<boolean>(false);
+  const [requestInterviewMessage, setRequestInterviewMessage] =
+    useState<string>("");
+  const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
+  const [feedbackText, setFeedbackText] = useState<string>("");
+  const [applicationToUpdate, setApplicationToUpdate] =
+    useState<Application | null>(null);
 
   // Local message box state (instead of alert/confirm)
-  const [messageBox, setMessageBox] = useState({
-    show: false,
-    title: "",
-    message: "",
-    type: "",
-  });
+  const [messageBox, setMessageBox] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    type: string;
+  }>({ show: false, title: "", message: "", type: "" });
 
   // Function to apply for a position (Intern's action)
   const handleApply = () => {
+    // Type guards ensure currentUser is Intern and selectedStartup is Startup within this block
     if (
       !currentUser ||
       currentUser.type !== "intern" ||
@@ -218,7 +265,7 @@ export default function InterlinkApp() {
       return;
     }
 
-    const newApplication = {
+    const newApplication: Application = {
       id:
         applications.length > 0
           ? Math.max(...applications.map((app) => app.id)) + 1
@@ -245,6 +292,7 @@ export default function InterlinkApp() {
 
   // Function to request an interview (Startup's action)
   const handleRequestInterview = () => {
+    // Type guards ensure currentUser is Startup and selectedIntern is Intern within this block
     if (!currentUser || currentUser.type !== "startup" || !selectedIntern) {
       setMessageBox({
         show: true,
@@ -277,11 +325,11 @@ export default function InterlinkApp() {
     }
 
     // Find a relevant position from the intern's skills or a general one
+    // currentUser is guaranteed to be Startup here due to type guard
     const suggestedPosition =
-      mockStartups.find((s) => s.id === currentUser.id)?.positions[0] ||
-      "General Internship";
+      (currentUser as Startup).positions?.[0] || "General Internship";
 
-    const newInterviewRequest = {
+    const newInterviewRequest: Application = {
       id:
         applications.length > 0
           ? Math.max(...applications.map((app) => app.id)) + 1
@@ -307,11 +355,19 @@ export default function InterlinkApp() {
   };
 
   // Function to handle application status update (Startup's action)
-  const handleUpdateApplicationStatus = (appId, newStatus, feedback = null) => {
+  const handleUpdateApplicationStatus = (
+    appId: number,
+    newStatus: Application["status"],
+    feedback: string | null = null,
+  ) => {
     setApplications((prevApps) =>
       prevApps.map((app) =>
         app.id === appId
-          ? { ...app, status: newStatus, feedback: feedback || app.feedback }
+          ? {
+              ...app,
+              status: newStatus,
+              feedback: feedback !== null ? feedback : app.feedback,
+            }
           : app,
       ),
     );
@@ -326,17 +382,24 @@ export default function InterlinkApp() {
     setApplicationToUpdate(null);
   };
 
-  const MessageBox = ({ show, title, message, type, onClose }) => {
+  // MessageBox component
+  interface MessageBoxProps {
+    show: boolean;
+    title: string;
+    message: string;
+    type: string;
+    onClose: () => void;
+  }
+
+  const MessageBox: React.FC<MessageBoxProps> = ({
+    show,
+    title,
+    message,
+    type,
+    onClose,
+  }) => {
     if (!show) return null;
 
-    const bgColor =
-      type === "success"
-        ? "bg-green-100"
-        : type === "error"
-          ? "bg-red-100"
-          : type === "warning"
-            ? "bg-orange-100"
-            : "bg-blue-100";
     const textColor =
       type === "success"
         ? "text-green-800"
@@ -403,7 +466,7 @@ export default function InterlinkApp() {
             <button
               onClick={() => {
                 setUserType("startup");
-                setCurrentUser({ type: "startup", ...mockStartups[0] }); // Set default startup
+                setCurrentUser({ type: "startup", ...mockStartups[0] });
               }}
               className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             >
@@ -412,7 +475,7 @@ export default function InterlinkApp() {
             <button
               onClick={() => {
                 setUserType("intern");
-                setCurrentUser({ type: "intern", ...mockInterns[0] }); // Set default intern
+                setCurrentUser({ type: "intern", ...mockInterns[0] });
               }}
               className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
             >
@@ -441,7 +504,7 @@ export default function InterlinkApp() {
             }}
             className="px-8 py-4 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-semibold transition-colors"
           >
-            I'm a Startup
+            I am a Startup
           </button>
           <button
             onClick={() => {
@@ -450,7 +513,7 @@ export default function InterlinkApp() {
             }}
             className="px-8 py-4 border-2 border-blue-600 text-blue-600 hover:bg-blue-50 rounded-lg font-semibold transition-colors"
           >
-            I'm an Intern
+            I am an Intern
           </button>
         </div>
 
@@ -971,7 +1034,6 @@ export default function InterlinkApp() {
                 key={`request-message-${selectedIntern?.id}`} // Added key for stable focus
                 id="interviewMessage"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows="4"
                 value={requestInterviewMessage}
                 onChange={(e) => setRequestInterviewMessage(e.target.value)}
                 placeholder={`Hi ${selectedIntern?.name}, we are very impressed with your profile...`}
@@ -1020,7 +1082,6 @@ export default function InterlinkApp() {
                 key={`feedback-message-${applicationToUpdate?.id}`} // Added key for stable focus
                 id="feedbackText"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows="4"
                 value={feedbackText}
                 onChange={(e) => setFeedbackText(e.target.value)}
                 placeholder="Enter feedback for the intern..."
@@ -1040,8 +1101,8 @@ export default function InterlinkApp() {
               <button
                 onClick={() =>
                   handleUpdateApplicationStatus(
-                    applicationToUpdate?.id,
-                    applicationToUpdate?.status,
+                    applicationToUpdate?.id as number,
+                    applicationToUpdate?.status as Application["status"],
                     feedbackText,
                   )
                 }
@@ -1234,7 +1295,7 @@ export default function InterlinkApp() {
                 })
               ) : (
                 <p className="text-gray-600 italic">
-                  You haven't submitted any applications yet.
+                  You have not submitted any applications yet.
                 </p>
               )}
             </div>
@@ -1421,7 +1482,6 @@ export default function InterlinkApp() {
                 key={`apply-message-${selectedStartup?.id}-${selectedPositionForApplication}`} // Added key for stable focus
                 id="applyMessage"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows="4"
                 value={applyMessage}
                 onChange={(e) => setApplyMessage(e.target.value)}
                 placeholder="Tell us why you're a great fit for this role..."
